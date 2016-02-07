@@ -1,5 +1,5 @@
-/**
- *  ComEd RRTP Current Average Hourly Rate Monitor
+﻿/**
+ *  ComEd RRTP Current Hour Average Monitor
  *  Author: chris.a.means@gmail.com
  *  Date: 2016-02-06
  *
@@ -35,26 +35,32 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  **/
+ 
+/**
+  * Static values
+  */
+private COMED_CURRENTHOURAVERAGE_URL()		{ "https://hourlypricing.comed.com/api?type=currenthouraverage" }
+
 metadata 
 {
-	definition (name: "ComEd RRTP Current Average Hourly Rate Monitor", namespace: "cmeans", author: "Chris Means") 
+	definition (name: "ComEd RRTP Current Hour Average Monitor", namespace: "cmeans", author: "Chris Means") 
     {
-		capability "Power Meter"
+		capability "Energy Meter"
 		capability "Switch Level"
         capability "Refresh"
         capability "Polling"
 
 		command "refresh"
 		command "poll"
-		command "setAverageHourlyRate", ["number"]
+		command "setCurrentHourAverage", ["number"]
 	}
 
 	// UI tile definitions
     tiles( scale: 2 ) 
 	{
-		valueTile("averageHourlyRate", "device.averageHourlyRate", width: 6, height: 6) 
+		valueTile("currentHourAverage", "device.currentHourAverage", width: 6, height: 6, canChangeIcon: true) 
         {
-			state("averageHourlyRate", label:'${currentValue}¢ kWh', unit:"kWh",
+			state("currentHourAverage", label:'${currentValue}¢ kWh', unit: "kWh",
 				backgroundColors:[
 					[value: 0, color: "#ffffff"],
 					[value: 4, color: "#0000ff"],
@@ -67,11 +73,11 @@ metadata
         
    		standardTile("refresh", "device.refresh", inactiveLabel: false, width: 2, height: 2, decoration: "flat")
 		{
-			state( "default", label:'refresh', action:"polling.poll", icon:"st.secondary.refresh-icon" )
+			state( "default", label: 'refresh', action: "polling.poll", icon: "st.secondary.refresh-icon" )
 		}
 
-        main "averageHourlyRate"
-		details(["averageHourlyRate", "refresh"])
+        main "currentHourAverage"
+		details(["currentHourAverage", "refresh"])
    }
 }
 
@@ -79,23 +85,24 @@ metadata
 def parse(String description) 
 {
 	def pair = description.split(":")
-	createEvent(name: pair[0].trim(), value: pair[1].trim(), unit:"kWh")
+    
+	createEvent(name: pair[0].trim(), value: pair[1].trim(), unit: "kWh")
 }
 
 def setLevel(value) 
 {
-	sendEvent(name:"averageHourlyRate", value: value)
+	sendEvent(name: "currentHourAverage", value: value)
 }
 
-def setAverageHourlyRate(value) 
+def setCurrentHourAverage(value) 
 {
-	sendEvent(name:"averageHourlyRate", value: value)
+	sendEvent(name: "currentHourAverage", value: value)
 }
 
 def getRate() 
 {
 	def params = [
-    	uri: "https://hourlypricing.comed.com/api?type=currenthouraverage",
+    	uri: COMED_CURRENTHOURAVERAGE_URL(),
         contentType: 'application/json',
         requestContentType: 'application/json'
 	]
@@ -105,6 +112,7 @@ def getRate()
     	httpGet(params) { resp ->
             log.debug "Rate is " + resp.data[0].price
             
+            // Return price.
             resp.data[0].price
 	    }
 	} 
@@ -119,19 +127,19 @@ def getRate()
  */
 def installed()
 {
-	log.info "ComEd RRTP Current Average Hourly Rate Monitor ${textVersion()}: ${textCopyright()} Installed"
+	log.info "ComEd RRTP Current Hour Average Monitor ${textVersion()}: ${textCopyright()} Installed"
 	do_update()
 }
 
 def initialize() 
 {
-	log.info "ComEd RRTP Current Average Hourly Rate Monitor Rate ${textVersion()}: ${textCopyright()} Initialized"
+	log.info "ComEd RRTP Current Hour Average Monitor ${textVersion()}: ${textCopyright()} Initialized"
 	do_update()
 }
 
 def updated() 
 {
-	log.info "ComEd RRTP Current Average Hourly Rate Monitor ${textVersion()}: ${textCopyright()} Updated"
+	log.info "ComEd RRTP Current Hour Average Monitor ${textVersion()}: ${textCopyright()} Updated"
 }
 
 def poll() 
@@ -148,18 +156,18 @@ def refresh()
 
 def reschedule()
 {
-	runIn( 300, 'do_update' )
+	runIn(300, 'do_update')
 }
 
 def do_update()
 {
-	setAverageHourlyRate getRate()
+	setCurrentHourAverage(getRate())
 	reschedule()
 }
 
 private def textVersion() 
 {
-	def text = "Version 1.0"
+	def text = "Version 1.1"
 }
 
 private def textCopyright() 
