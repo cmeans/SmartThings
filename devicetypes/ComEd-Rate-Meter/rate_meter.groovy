@@ -1,8 +1,13 @@
 ﻿/**
  *  ComEd RRTP Current Hour Average Monitor
  *  Author: chris.a.means@gmail.com
- *  Date: 2016-02-06
+ *  Date: 2016-02-07
  *
+ *  v1.0 Initial implementation
+ *  v1.1 Changed to an Energy Meter, and other code clean up.
+ *  v1.1.1 Added additional tile color values to inhibit interpolation.
+ *  v1.2 Improved scheduling.
+ *  v1.3 Fixed variable/event name/value.
  *
  * INSTALLATION
  * =========================================
@@ -46,7 +51,6 @@ metadata
 	definition (name: "ComEd RRTP Current Hour Average Monitor", namespace: "cmeans", author: "Chris Means") 
     {
 		capability "Energy Meter"
-		capability "Switch Level"
         capability "Refresh"
         capability "Polling"
 
@@ -58,14 +62,22 @@ metadata
 	// UI tile definitions
     tiles( scale: 2 ) 
 	{
-		valueTile("currentHourAverage", "device.currentHourAverage", width: 6, height: 6, canChangeIcon: true) 
+		valueTile("currentHourAverage", "device.energy", width: 6, height: 6, canChangeIcon: true, canChangeBackground: true) 
         {
-			state("currentHourAverage", label:'${currentValue}¢ kWh', unit: "kWh",
+			state("currentHourAverage", label:'${currentValue}¢ / kWh', unit: "¢ / kWh",
 				backgroundColors:[
 					[value: 0, color: "#ffffff"],
+					[value: 1, color: "#0000ff"],
+					[value: 2, color: "#0000ff"],
+					[value: 3, color: "#0000ff"],
 					[value: 4, color: "#0000ff"],
+					[value: 5, color: "#00ff00"],
+					[value: 6, color: "#00ff00"],
 					[value: 7, color: "#00ff00"],
+					[value: 8, color: "#ffff00"],
+					[value: 9, color: "#ffff00"],
 					[value: 10, color: "#ffff00"],
+					[value: 11, color: "#ff0000"],
 					[value: 1000, color: "#ff0000"]
 				]
 			)
@@ -73,11 +85,23 @@ metadata
         
    		standardTile("refresh", "device.refresh", inactiveLabel: false, width: 2, height: 2, decoration: "flat")
 		{
-			state( "default", label: 'refresh', action: "polling.poll", icon: "st.secondary.refresh-icon" )
+			state(
+            	"default", 
+                label: 'refresh', 
+                //action: "polling.poll", 
+                action: "refresh",
+                icon: "st.secondary.refresh-icon" )
 		}
 
-        main "currentHourAverage"
-		details(["currentHourAverage", "refresh"])
+   		standardTile("version", "device.versoin", inactiveLabel: true, width: 2, height: 2, decoration: "flat")
+		{
+			state(
+            	"default", 
+                label: textVersion())
+		}
+
+		main "currentHourAverage"
+		details(["currentHourAverage", "refresh", "version"])
    }
 }
 
@@ -86,17 +110,12 @@ def parse(String description)
 {
 	def pair = description.split(":")
     
-	createEvent(name: pair[0].trim(), value: pair[1].trim(), unit: "kWh")
-}
-
-def setLevel(value) 
-{
-	sendEvent(name: "currentHourAverage", value: value)
+	createEvent(name: pair[0].trim(), value: pair[1].trim(), unit: "¢ / kWh")
 }
 
 def setCurrentHourAverage(value) 
 {
-	sendEvent(name: "currentHourAverage", value: value)
+	sendEvent(name: "energy", value: value, unit: "¢ / kWh")
 }
 
 def getRate() 
@@ -110,7 +129,7 @@ def getRate()
 	try 
     {
     	httpGet(params) { resp ->
-            log.debug "Rate is " + resp.data[0].price
+            log.debug "Rate is ${resp.data[0].price}¢ / kWh"
             
             // Return price.
             resp.data[0].price
@@ -125,52 +144,38 @@ def getRate()
 /**
  * handle commands
  */
-def installed()
-{
-	log.info "ComEd RRTP Current Hour Average Monitor ${textVersion()}: ${textCopyright()} Installed"
-	do_update()
-}
-
-def initialize() 
-{
-	log.info "ComEd RRTP Current Hour Average Monitor ${textVersion()}: ${textCopyright()} Initialized"
-	do_update()
-}
-
-def updated() 
-{
-	log.info "ComEd RRTP Current Hour Average Monitor ${textVersion()}: ${textCopyright()} Updated"
-}
-
 def poll() 
 {
-	log.debug "poll"
-	do_update()
+	//log.debug "poll"
+    
+    do_update()
 }
 
 def refresh() 
 {
-	log.debug "refresh"
+	//log.debug "refresh"
+    
 	do_update()
 }
 
 def reschedule()
 {
-	runIn(300, 'do_update')
+	runIn(300, do_update)
 }
 
 def do_update()
 {
 	setCurrentHourAverage(getRate())
+
 	reschedule()
 }
 
 private def textVersion() 
 {
-	def text = "Version 1.1"
+	"v1.3.1"
 }
 
 private def textCopyright() 
 {
-	def text = "Copyright © 2016 Chris Means <chris.a.means@gmail.com>"
+	"Copyright © 2016 Chris Means <chris.a.means@gmail.com>"
 }
